@@ -1,27 +1,51 @@
 var express = require('express');
 var router = express.Router();
 
-/* GET home page. */
-router.get('/', function(req, res, next) {
+var Customer = require('../models/customer');
 
-  var customers = [
-    { id: '1', name: 'Thomas Hardy', address: 	'89 Chiaroscuro Rd.', city: 'Portland', pinCode: '97219', country: 'USA' },
-    { id: '2', name: 'Maria Anders', address: 	'Obere Str. 57', city: 'Berlin', pinCode: '12209', country: 'Germany' },
-    { id: '3', name: 'Fran Wilson', address: 	'C/ Araquil, 67', city: 'Madrid', pinCode: '28023', country: 'Spain' },
-    { id: '4', name: 'Dominique Perrier', address: 	'25, rue Lauriston', city: 'Paris', pinCode: '75016', country: 'France' },
-    { id: '5', name: 'Martin Blank', address: 	'Via Monte Bianco 34', city: 'Turin', pinCode: '10100', country: 'Italy' }
-  ];
+router.get('/', function (req, res, next) {
 
-  var page = {
-    dispNum: 5,
-    totalNum: 25,
-    link: {next: '', prev: ''}
-  }
+  var options = {
+    lean: true,
+    limit: parseInt(req.query.limit) || 5,
+    page: parseInt(req.query.page) || 1
+  };
 
-  res.render('index', {
-    customers: customers,
-    title: 'Express'
+  var offset = (options.page - 1) * options.limit + 1;
+
+  Customer.paginate({}, options).then(result => {
+    console.log(result);
+
+    res.render('index', {
+      customers: result.docs,
+      current: result.page,
+      pages: result.pages,
+      total: result.total
+    });
+  }).catch(err => {
+    console.log(err);
+    throw err;
   });
+
+});
+
+router.delete('/:id', function (req, res, next) {
+  Customer.findByIdAndDelete({_id: req.params.id}).then(result => {
+    console.log(result);
+
+    Customer.paginate({}, {limit: 5, page: 1}).then(result => {
+      res.status(200).render('customers', {
+        customers: result.docs,
+        current: result.page,
+        pages: result.pages,
+        total: result.total
+      });
+    });
+  }).catch(err => { 
+    console.log(err);
+    throw err;
+  });;
+
 });
 
 module.exports = router;
